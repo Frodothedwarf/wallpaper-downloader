@@ -6,7 +6,6 @@ from urllib import request
 from urllib.error import HTTPError
 from bs4 import BeautifulSoup as soup
 import os
-import re
 
 
 def send_request(arg):
@@ -26,8 +25,7 @@ def send_request(arg):
     )
 
     html = request.urlopen(req).read()
-    make_soup = soup(html, 'html.parser')
-    return make_soup
+    return html
 
 
 def count_wallpapers(arg):
@@ -39,9 +37,11 @@ def count_wallpapers(arg):
     """
 
     try:
+        main_html = send_request(arg)
+        main_soup = soup(main_html, 'html.parser')
         domain = 'http://www.santabanta.com'
         l_list = []
-        paginate = send_request(arg).find('div', {'class': 'paging-div-new'})
+        paginate = main_soup.find('div', {'class': 'paging-div-new'})
         dot = paginate.find('a', {'class': 'dots'})
 
         for a in paginate.find_all('a', href=True):
@@ -63,16 +63,15 @@ def count_wallpapers(arg):
                     continue
                 missing_page = domain + pre_link
                 l_list.append(missing_page)
-        print(l_list)
-        wall_count = len(l_list) * 18 + 19
 
+        wall_count = len(l_list) * 18 + 19
         return l_list, wall_count
 
     except AttributeError:
         pass
 
 
-def santabanta_downloader(arg, arg2):
+def santabanta_downloader(arg):
 
     """
     download all the wallpapers in given catagory
@@ -80,8 +79,11 @@ def santabanta_downloader(arg, arg2):
     :param arg2: Plain query string entered by the user
     :return:
     """
-    link_list, _ = count_wallpapers(dashed_query)
-    div = send_request(arg).find('div', {'class': 'wallpaper-big-1 position-rel'})
+
+    link_list, _ = count_wallpapers(search)
+    main_html = send_request(arg)
+    main_soup = soup(main_html, 'html.parser')
+    div = main_soup.find('div', {'class': 'wallpaper-big-1 position-rel'})
 
     for item in div.find_all('div', {'class': 'wallpapers-box-300x180-2 wallpapers-margin-2'}):
         img_page_half_link = item.find('a')['href']
@@ -95,7 +97,8 @@ def santabanta_downloader(arg, arg2):
         full_img_url = higher_soup.find('div', {'class': 'wallpaper-big-1-img width-video-new-2 lazy'})
         image = full_img_url.find('a')['href']
         img_name = full_img_url.find('a')['download']
-        download_path = os.path.join(f'Wallpapers/{arg2.capitalize()}/')
+        folder_name = arg.replace('-', ' ')
+        download_path = os.path.join(f'Wallpapers/{folder_name.capitalize()}/')
         os.makedirs(download_path, exist_ok=True)
         request.urlretrieve(image, download_path + img_name + '.jpg')
         print(f'Downloading... {img_name}')
@@ -118,7 +121,7 @@ def santabanta_downloader(arg, arg2):
             full_img_url = higher_soup.find('div', {'class': 'wallpaper-big-1-img width-video-new-2 lazy'})
             image = full_img_url.find('a')['href']
             img_name = full_img_url.find('a')['download']
-            download_path = os.path.join(f'Wallpapers/{arg2.capitalize()}/')
+            download_path = os.path.join(f'Wallpapers/{folder_name.capitalize()}/')
             os.makedirs(download_path, exist_ok=True)
             request.urlretrieve(image, download_path + img_name + '.jpg')
             print(f'Downloading... {img_name}')
@@ -128,16 +131,12 @@ if __name__ == '__main__':
 
     try:
         query = input(str("Enter the category name you want to download (eg: 'Dia Mirza): "))
-        query_lower = query.lower()
-        dashed_query = re.sub(' ', '-', query_lower)
-
-        link_list, _ = count_wallpapers(dashed_query)
-        _, wallpaper_count = count_wallpapers(dashed_query)
-
+        search = query.replace(' ', '-').lower()
+        _, wallpaper_count = count_wallpapers(search)
         print(f"{wallpaper_count} Wallpapers found")
         choice = input(str("For start downloading hit enter"))
         if choice == '':
-            santabanta_downloader(dashed_query, query)
+            santabanta_downloader(search)
 
     except NameError:
         print("Please enter the category name")
