@@ -30,6 +30,48 @@ def send_request(arg):
     return make_soup
 
 
+def count_wallpapers(arg):
+    """
+    Counts all the wallpaper associated with given category
+    creates list of all the links in the pagination of given wallpaper category
+    :param arg: search query from user
+    :return: wallpaper count and list of links
+    """
+
+    try:
+        domain = 'http://www.santabanta.com'
+        l_list = []
+        paginate = send_request(arg).find('div', {'class': 'paging-div-new'})
+        dot = paginate.find('a', {'class': 'dots'})
+
+        for a in paginate.find_all('a', href=True):
+            if not a.span:
+                page_links = a['href']
+                full_page_links = domain + page_links
+                l_list.append(full_page_links)
+
+        if dot:
+            pre_link = dot.find_previous('a')['href']
+            pre_page_number = dot.find_previous('a')['href'][-1]
+            next_page_number = dot.find_next('a')['href'][-2:]
+            no_number_pre_page = pre_link.rstrip('0123456789')
+
+            while int(pre_page_number) < int(next_page_number):
+                pre_page_number = int(pre_page_number) + 1
+                pre_link = no_number_pre_page + str(pre_page_number)
+                if int(pre_page_number) == int(next_page_number):
+                    continue
+                missing_page = domain + pre_link
+                l_list.append(missing_page)
+        print(l_list)
+        wall_count = len(l_list) * 18 + 19
+
+        return l_list, wall_count
+
+    except AttributeError:
+        pass
+
+
 def santabanta_downloader(arg, arg2):
 
     """
@@ -38,7 +80,7 @@ def santabanta_downloader(arg, arg2):
     :param arg2: Plain query string entered by the user
     :return:
     """
-
+    link_list, _ = count_wallpapers(dashed_query)
     div = send_request(arg).find('div', {'class': 'wallpaper-big-1 position-rel'})
 
     for item in div.find_all('div', {'class': 'wallpapers-box-300x180-2 wallpapers-margin-2'}):
@@ -50,49 +92,36 @@ def santabanta_downloader(arg, arg2):
         res = social_bar.find_all('a')[-1]['href']
         higher_req = request.urlopen('http://www.santabanta.com' + res).read()
         higher_soup = soup(higher_req, 'html.parser')
-
         full_img_url = higher_soup.find('div', {'class': 'wallpaper-big-1-img width-video-new-2 lazy'})
         image = full_img_url.find('a')['href']
         img_name = full_img_url.find('a')['download']
         download_path = os.path.join(f'Wallpapers/{arg2.capitalize()}/')
         os.makedirs(download_path, exist_ok=True)
         request.urlretrieve(image, download_path + img_name + '.jpg')
-        print(f'Downloading: {img_name}')
-
-
-def count_wallpapers(arg):
-    """
-    function to calculate all the wallpapers found of searched query
-    it digs all the pages of category.
-    :param arg: takes urls of all the valid pages.
-    :return: total count of wallpapers found.
-    """
-    print("Page found")
-    print("Calculating wallpapers...")
-    domain = 'http://www.santabanta.com'
-    paginate = send_request(arg).find('div', {'class': 'paging-div-new'})
-    link_list = []
-    total_wallpaper = []
-    for a in paginate.find_all('a', href=True):
-        if not a.span:
-            page_links = a['href']
-            full_page_links = domain + page_links
-            link_list.append(full_page_links)
+        print(f'Downloading... {img_name}')
 
     for link in link_list:
-        visit = request.urlopen(link)
+        next_page = request.urlopen(link).read()
+        next_soup = soup(next_page, 'html.parser')
 
-        make_soup = soup(visit, 'html.parser')
-        div = make_soup.find('div', {'class': 'wallpaper-big-1 position-rel'})
-        all_img = div.find_all('div', {'class': 'wallpapers-box-300x180-2 wallpapers-margin-2'})
-        total_wallpaper.append(all_img)
+        div = next_soup.find('div', {'class': 'wallpaper-big-1 position-rel'})
 
-        # print(len(all_img))
-
-    page_count = len(link_list)
-
-    wallpaper_count = page_count * 18 + 19
-    return wallpaper_count
+        for item in div.find_all('div', {'class': 'wallpapers-box-300x180-2 wallpapers-margin-2'}):
+            img_page_half_link = item.find('a')['href']
+            img_page_full_link = 'http://www.santabanta.com' + img_page_half_link
+            inner_html = request.urlopen(img_page_full_link).read()
+            make_soup = soup(inner_html, 'html.parser')
+            social_bar = make_soup.find('div', {'class': 'social-bar-2a wall-right-links a'})
+            res = social_bar.find_all('a')[-1]['href']
+            higher_req = request.urlopen('http://www.santabanta.com' + res).read()
+            higher_soup = soup(higher_req, 'html.parser')
+            full_img_url = higher_soup.find('div', {'class': 'wallpaper-big-1-img width-video-new-2 lazy'})
+            image = full_img_url.find('a')['href']
+            img_name = full_img_url.find('a')['download']
+            download_path = os.path.join(f'Wallpapers/{arg2.capitalize()}/')
+            os.makedirs(download_path, exist_ok=True)
+            request.urlretrieve(image, download_path + img_name + '.jpg')
+            print(f'Downloading... {img_name}')
 
 
 if __name__ == '__main__':
@@ -102,12 +131,13 @@ if __name__ == '__main__':
         query_lower = query.lower()
         dashed_query = re.sub(' ', '-', query_lower)
 
-        if count_wallpapers(dashed_query):
-            wall_count = count_wallpapers(dashed_query)
-            print(f"{wall_count} Wallpapers found")
-            choice = input(str("For start downloading hit enter"))
-            if choice == '':
-                santabanta_downloader(dashed_query, query)
+        link_list, _ = count_wallpapers(dashed_query)
+        _, wallpaper_count = count_wallpapers(dashed_query)
+
+        print(f"{wallpaper_count} Wallpapers found")
+        choice = input(str("For start downloading hit enter"))
+        if choice == '':
+            santabanta_downloader(dashed_query, query)
 
     except NameError:
         print("Please enter the category name")
