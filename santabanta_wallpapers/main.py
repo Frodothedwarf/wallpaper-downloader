@@ -84,25 +84,29 @@ def santabanta_downloader(arg):
     main_html = send_request(arg)
     main_soup = soup(main_html, 'html.parser')
     div = main_soup.find('div', {'class': 'wallpaper-big-1 position-rel'})
+    try:
 
-    for item in div.find_all('div', {'class': 'wallpapers-box-300x180-2 wallpapers-margin-2'}):
-        img_page_half_link = item.find('a')['href']
-        img_page_full_link = 'http://www.santabanta.com' + img_page_half_link
-        inner_html = request.urlopen(img_page_full_link).read()
-        make_soup = soup(inner_html, 'html.parser')
-        social_bar = make_soup.find('div', {'class': 'social-bar-2a wall-right-links a'})
-        res = social_bar.find_all('a')[-1]['href']
-        higher_req = request.urlopen('http://www.santabanta.com' + res).read()
-        higher_soup = soup(higher_req, 'html.parser')
-        full_img_url = higher_soup.find('div', {'class': 'wallpaper-big-1-img width-video-new-2 lazy'})
-        image = full_img_url.find('a')['href']
-        img_name = full_img_url.find('a')['download']
-        folder_name = arg.replace('-', ' ')
-        download_path = os.path.join(f'Wallpapers/{folder_name.capitalize()}/')
-        os.makedirs(download_path, exist_ok=True)
-        request.urlretrieve(image, download_path + img_name + '.jpg')
-        print(f'Downloading... {img_name}')
+        for item in div.find_all('div', {'class': 'wallpapers-box-300x180-2 wallpapers-margin-2'}):
+            img_page_half_link = item.find('a')['href']
+            img_page_full_link = 'http://www.santabanta.com' + img_page_half_link
+            inner_html = request.urlopen(img_page_full_link).read()
+            make_soup = soup(inner_html, 'html.parser')
+            social_bar = make_soup.find('div', {'class': 'social-bar-2a wall-right-links a'})
+            res = social_bar.find_all('a')[-1]['href']
+            higher_req = request.urlopen('http://www.santabanta.com' + res).read()
+            higher_soup = soup(higher_req, 'html.parser')
+            full_img_url = higher_soup.find('div', {'class': 'wallpaper-big-1-img width-video-new-2 lazy'})
+            image = full_img_url.find('a')['href']
+            img_name = full_img_url.find('a')['download']
+            folder_name = arg.replace('-', ' ')
+            download_path = os.path.join(f'Wallpapers/{folder_name.capitalize()}/')
+            os.makedirs(download_path, exist_ok=True)
+            request.urlretrieve(image, download_path + img_name + '.jpg')
+            print(f'Downloading... {img_name}')
 
+    except TypeError:
+        print("Downloading finished!")
+        
     for link in link_list:
         next_page = request.urlopen(link).read()
         next_soup = soup(next_page, 'html.parser')
@@ -127,16 +131,53 @@ def santabanta_downloader(arg):
             print(f'Downloading... {img_name}')
 
 
+def santabanta(arg):
+    main_html = send_request(arg)
+    main_soup = soup(main_html, 'html.parser')
+    div = main_soup.find('div', {'class': 'wallpaper-big-1 position-rel'})
+
+    try:
+
+        for item in div.find_all('div', {'class': 'wallpapers-box-300x180-2 wallpapers-margin-2'}):
+            img_page_half_link = item.find('a')['href']
+            img_page_full_link = 'http://www.santabanta.com' + img_page_half_link
+            inner_html = request.urlopen(img_page_full_link).read()
+            make_soup = soup(inner_html, 'html.parser')
+            social_bar = make_soup.find('div', {'class': 'social-bar-2a wall-right-links a'})
+            res = social_bar.find_all('a')[-1]['href']
+            higher_req = request.urlopen('http://www.santabanta.com' + res).read()
+            higher_soup = soup(higher_req, 'html.parser')
+            full_img_url = higher_soup.find('div', {'class': 'wallpaper-big-1-img width-video-new-2 lazy'})
+            image = full_img_url.find('a')['href']
+            img_name = full_img_url.find('a')['download']
+            folder_name = arg.replace('-', ' ')
+            download_path = os.path.join(f'Wallpapers/{folder_name.capitalize()}/')
+            os.makedirs(download_path, exist_ok=True)
+            request.urlretrieve(image, download_path + img_name + '.jpg')
+            print(f'Downloading... {img_name}')
+
+    except TypeError:
+        print('Downloading finished')
+
+
 if __name__ == '__main__':
 
     try:
+
         query = input(str("Enter the category name you want to download (eg: 'Dia Mirza): "))
         search = query.replace(' ', '-').lower()
-        _, wallpaper_count = count_wallpapers(search)
-        print(f"{wallpaper_count} Wallpapers found")
-        choice = input(str("For start downloading hit enter"))
-        if choice == '':
-            santabanta_downloader(search)
+
+        if not count_wallpapers(search):
+            print("Only one page found")
+            choice = input(str("For start downloading hit enter"))
+            if choice == '':
+                santabanta(search)
+        else:
+            _, wallpaper_count = count_wallpapers(search)
+            print(f"{wallpaper_count} Wallpapers found")
+            choice = input(str("For start downloading hit enter"))
+            if choice == '':
+                santabanta_downloader(search)
 
     except NameError:
         print("Please enter the category name")
